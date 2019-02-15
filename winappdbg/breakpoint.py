@@ -629,7 +629,6 @@ class CodeBreakpoint (Breakpoint):
         if self.is_enabled():
             self.__clear_bp(aProcess)
             aThread.set_tf()
-            print ">>> set_tf"
         super(CodeBreakpoint, self).running(aProcess, aThread)
 
 #==============================================================================
@@ -3447,17 +3446,6 @@ class _BreakpointContainer (object):
         bCallHandler    = True
         # assert event.get_process().read(address, 1) == '\xcc'
         
-        print ">>> _notify_breakpoint", event.get_tid(), hex(address), ''.join(map(lambda x: "%02x" % ord(x), event.get_process().read(address, 4)))
-        """
-        if event.get_process().read(address, 1) != '\xcc':
-          print "BANG!!!!!!!!!!!!!!!!!!!!!"
-          aThread = event.get_thread()
-          aThread.set_pc(address)
-          
-          # Swallow the exception.
-          event.continueStatus = win32.DBG_CONTINUE
-          return False
-        """
         # Do we have an active code breakpoint there?
         key = (pid, address)
         if key in self.__codeBP:
@@ -3476,9 +3464,7 @@ class _BreakpointContainer (object):
 
                 # Hit the breakpoint.
                 bp.hit(event)
-                
-                print ">>> set_pc", hex(address), ''.join(map(lambda x: "%02x" % ord(x), event.get_process().read(address, 4)))
-                
+                                
                 # Remember breakpoints in RUNNING state.
                 if bp.is_running():
                     tid = event.get_tid()
@@ -3537,7 +3523,7 @@ class _BreakpointContainer (object):
         bIsOurs      = False
         
         address = aThread.get_pc()
-        print ">>> _notify_single_step", hex(address), ''.join(map(lambda x: "%02x" % ord(x), event.get_process().read(address, 4)))
+        
         # In hostile mode set the default to pass the exception to the debugee.
         # If we later determine the exception is ours, hide it instead.
         old_continueStatus = event.continueStatus
