@@ -629,6 +629,7 @@ class CodeBreakpoint (Breakpoint):
         if self.is_enabled():
             self.__clear_bp(aProcess)
             aThread.set_tf()
+            print ">>> set_tf"
         super(CodeBreakpoint, self).running(aProcess, aThread)
 
 #==============================================================================
@@ -2592,7 +2593,7 @@ class _BreakpointContainer (object):
         key = (dwProcessId, address)
         if key not in self.__pageBP:
             msg = "No breakpoint at process %d, address %s"
-            address = HexDump.addresS(address)
+            address = HexDump.address(address)
             raise KeyError(msg % (dwProcessId, address))
         return self.__pageBP[key]
 
@@ -3444,7 +3445,19 @@ class _BreakpointContainer (object):
         address         = event.get_exception_address()
         pid             = event.get_pid()
         bCallHandler    = True
-
+        # assert event.get_process().read(address, 1) == '\xcc'
+        
+        print ">>> _notify_breakpoint", event.get_tid(), hex(address), ''.join(map(lambda x: "%02x" % ord(x), event.get_process().read(address, 4)))
+        """
+        if event.get_process().read(address, 1) != '\xcc':
+          print "BANG!!!!!!!!!!!!!!!!!!!!!"
+          aThread = event.get_thread()
+          aThread.set_pc(address)
+          
+          # Swallow the exception.
+          event.continueStatus = win32.DBG_CONTINUE
+          return False
+        """
         # Do we have an active code breakpoint there?
         key = (pid, address)
         if key in self.__codeBP:
@@ -3457,13 +3470,15 @@ class _BreakpointContainer (object):
                 # the size of it.
                 aThread = event.get_thread()
                 aThread.set_pc(address)
-
+                
                 # Swallow the exception.
                 event.continueStatus = win32.DBG_CONTINUE
 
                 # Hit the breakpoint.
                 bp.hit(event)
-
+                
+                print ">>> set_pc", hex(address), ''.join(map(lambda x: "%02x" % ord(x), event.get_process().read(address, 4)))
+                
                 # Remember breakpoints in RUNNING state.
                 if bp.is_running():
                     tid = event.get_tid()
@@ -3478,7 +3493,15 @@ class _BreakpointContainer (object):
                     bCallHandler = bp.run_action(event)
                 else:
                     bCallHandler = bCondition
-
+            else:
+                
+                aThread = event.get_thread()
+                aThread.set_pc(address)
+                
+                # Swallow the exception.
+                event.continueStatus = win32.DBG_CONTINUE
+                bCallHandler = False
+            
         # Handle the system breakpoint.
         # TODO: examine the stack trace to figure out if it's really a
         # system breakpoint or an antidebug trick. The caller should be
@@ -3512,7 +3535,9 @@ class _BreakpointContainer (object):
         aProcess     = event.get_process()
         bCallHandler = True
         bIsOurs      = False
-
+        
+        address = aThread.get_pc()
+        print ">>> _notify_single_step", hex(address), ''.join(map(lambda x: "%02x" % ord(x), event.get_process().read(address, 4)))
         # In hostile mode set the default to pass the exception to the debugee.
         # If we later determine the exception is ours, hide it instead.
         old_continueStatus = event.continueStatus
